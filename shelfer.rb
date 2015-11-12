@@ -2,6 +2,7 @@
 
 require 'optparse'
 require 'yaml'
+require 'logger'
 require './utils'
 
 #
@@ -58,19 +59,19 @@ def parseInput(args)
 	tokens = argstr.split(";")
 	ret = {}
 	if tokens.length == 3 then # fulltitle;authors;year
-		ret['fulltitle'] = tokens[0]
-		ret['year'] = tokens[2].sub(/[^\d]/,'')
+		ret['fulltitle'] = tokens[0].gsub(/[-_]/, ' ')
+		ret['year'] = tokens[2].gsub(/[^\d]/,'')
 		if tokens[1] =~ /^([a-zA-Z]+-)?(.*)$/ then
 			ret['author'] = $2 if $2.length > 0
 		end
 	elsif tokens.length > 1 then
-		ret['fulltitle'] = tokens.shift
+		ret['fulltitle'] = tokens.shift.gsub(/[-_]/, ' ')
 		author = tokens.drop_while{|x| x =~ /[^a-zA-Z\s]/}.first
 		ret['author'] = author unless author.nil?
 	else
-		ret['fulltitle'] = argstr
+		ret['fulltitle'] = argstr.gsub(/[-_]/, ' ')
 	end
-	ret['fulltitle'] = ret['fulltitle'].sub(/\(.*\)/,'').strip
+	ret['fulltitle'] = ret['fulltitle'].gsub(/\(.*\)/,'').gsub(/ +/,' ').strip
 	ret['fulltitle'].match(/\b(\d+)e$/) { |m|
 		ret['edition'] = m[1]
 		ret['fulltitle'].sub!(/\b\s*\d+e$/,'')
@@ -81,14 +82,19 @@ end
 
 # main program of the shelfer
 def main()
-	options = parseOption
+    logger = Logger.new(STDOUT)
+    logger.level = Logger::DEBUG
 
 	# Parse command line options
+	options = parseOption
+    input = parseInput(options[:input])
 	# Read in config file
-	config = YAML::load_file(File.expand_path("~/.biblio/config.yaml"))
+	configfile = File.expand_path("~/.biblio/config.yaml")
+	config = File.exist?(configfile) ? YAML::load_file(configfile) : nil
 
-	puts config
-	puts options
+    logger.debug(config)
+    logger.debug(options)
+    logger.debug(input)
 end
 
 if __FILE__ == $0 then
